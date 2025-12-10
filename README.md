@@ -11,14 +11,14 @@ Designed for applications that need to evaluate complex business rules with mini
 
 ## Features
 
-- ** High Performance**: Rust-powered engine with zero-cost abstractions
-- ** Priority-based Execution**: Rules sorted by priority (lower number = higher priority)
-- ** Stop-on-First**: Per-category flag to stop after first match
-- ** MongoDB-style Operators**: Familiar syntax with `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
-- ** Complex Logic**: Support for nested AND/OR predicates
-- ** Python Bindings**: Native performance with idiomatic Python API via PyO3
-- ** Memory Efficient**: Minimal allocations in hot path, optimized data structures
-- ** Benchmarked**: Built-in performance benchmarks with Criterion
+- **High Performance**: Rust-powered engine with zero-cost abstractions
+- **Priority-based Execution**: Rules sorted by priority (lower number = higher priority)
+- **Stop-on-First**: Per-category flag to stop after first match
+- **MongoDB-style Operators**: Familiar syntax with `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+- **Complex Logic**: Support for nested AND/OR predicates
+- **Python Bindings**: Native performance with idiomatic Python API via PyO3
+- **Memory Efficient**: Minimal allocations in hot path, optimized data structures
+- **Benchmarked**: Built-in performance benchmarks with Criterion
 
 ## Use Cases
 
