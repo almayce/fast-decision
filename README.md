@@ -1,6 +1,5 @@
 # fast-decision
 
-[![CI](https://github.com/almayce/fast-decision/actions/workflows/ci.yml/badge.svg)](https://github.com/almayce/fast-decision/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/fast-decision.svg)](https://crates.io/crates/fast-decision)
 [![PyPI](https://img.shields.io/pypi/v/fast-decision.svg)](https://pypi.org/project/fast-decision/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/almayce/fast-decision#license)
