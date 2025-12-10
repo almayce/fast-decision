@@ -1,2 +1,2 @@
 # fast-decision
-the fastest rule engine for everyone
+High-Performance MongoDB-Style Rule Engine for Python
