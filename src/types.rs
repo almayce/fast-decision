@@ -6,11 +6,11 @@
 //! - [`Rule`]: Individual rule with conditions and action
 //! - [`Predicate`]: AST for condition evaluation (Comparison, AND, OR)
 //! - [`Comparison`]: Single field comparison operation
-//! - [`Operator`]: MongoDB-style comparison operators
+//! - [`Operator`]: Comparison operators
 //!
 //! All types implement custom deserialization for optimal memory layout.
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -34,7 +34,7 @@ fn tokenize_path(path: &str) -> Box<[String]> {
         .into_boxed_slice()
 }
 
-/// MongoDB-style comparison operators.
+/// Comparison operators.
 ///
 /// # Memory Layout
 ///
@@ -48,7 +48,7 @@ fn tokenize_path(path: &str) -> Box<[String]> {
 /// - `$lt`: Less than
 /// - `$gte`: Greater than or equal
 /// - `$lte`: Less than or equal
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[repr(u8)]
 pub enum Operator {
     #[serde(rename = "$eq")]
@@ -76,8 +76,9 @@ pub enum Operator {
 /// # Memory Optimization
 ///
 /// Uses `Box<[String]>` for path tokens to minimize memory overhead.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Comparison {
+    #[serde(rename = "path")]
     pub path_tokens: Box<[String]>,
     pub op: Operator,
     pub value: Value,
@@ -109,10 +110,13 @@ pub struct Comparison {
 /// ```json
 /// {"$or": [{"tier": {"$eq": "Gold"}}, {"tier": {"$eq": "Platinum"}}]}
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum Predicate {
     Comparison(Comparison),
+    #[serde(rename = "$and")]
     And(Vec<Predicate>),
+    #[serde(rename = "$or")]
     Or(Vec<Predicate>),
 }
 
@@ -151,10 +155,11 @@ pub struct Category {
 ///   "action": "apply_discount"
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Rule {
     pub id: String,
     pub priority: i32,
+    #[serde(rename = "conditions")]
     pub predicate: Predicate,
     pub action: String,
 }

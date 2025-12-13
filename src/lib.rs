@@ -1,15 +1,14 @@
 //! # fast-decision
 //!
-//! A high-performance rule engine with MongoDB-style query syntax.
+//! A high-performance rule engine.
 //!
 //! This crate provides a rule execution engine optimized for speed with zero-cost abstractions.
-//! Rules are defined using a MongoDB-style syntax and can be executed against JSON data.
 //!
 //! ## Features
 //!
 //! - **Priority-based execution**: Rules are sorted by priority (lower values = higher priority)
 //! - **Stop-on-first**: Per-category flag to stop execution after the first matching rule
-//! - **MongoDB-style operators**: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+//! - **Condition operators**: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
 //! - **Zero-cost abstractions**: Optimized Rust core with minimal allocations in hot paths
 //! - **Python bindings**: Native performance accessible from Python via PyO3
 //!
@@ -60,6 +59,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use serde_json::Value;
+use pythonize::pythonize;
 
 mod engine;
 mod types;
@@ -183,30 +183,33 @@ impl FastDecision {
     ///
     /// # Returns
     ///
-    /// List of rule IDs (as strings) that matched the data, in priority order.
+    /// List of rule objects (as Python dictionaries) that matched the data, in priority order.
+    /// Each dictionary contains: id, priority, conditions, action.
     ///
     /// # Performance
     ///
     /// Converts Python dict to Rust `Value` once, then executes rules natively.
-    /// Recommended for in-memory data that's already in Python.
+    /// Uses pythonize for efficient Rust → Python conversion without intermediate JSON.
     ///
     /// # Example
     ///
     /// ```python
     /// data = {"user": {"tier": "Gold"}}
     /// results = engine.execute(data, categories=["Pricing"])
+    /// for rule in results:
+    ///     print(f"Rule {rule['id']}: {rule['action']}")
     /// ```
-    fn execute(&self, data: &Bound<'_, PyDict>, categories: Vec<String>) -> PyResult<Vec<String>> {
+    fn execute(&self, py: Python<'_>, data: &Bound<'_, PyDict>, categories: Vec<String>) -> PyResult<Vec<PyObject>> {
         let value = pyany_to_value(data.as_any())?;
         let categories_refs: Vec<&str> = categories.iter().map(String::as_str).collect();
         let results = self.engine.execute(&value, &categories_refs);
 
-        // Pre-allocate with exact capacity to minimize allocations
-        let mut owned_results = Vec::with_capacity(results.len());
-        for &rule_id in &results {
-            owned_results.push(rule_id.to_owned());
+        // Direct Rust → Python conversion with pythonize (no intermediate JSON)
+        let mut py_results = Vec::with_capacity(results.len());
+        for rule in results {
+            py_results.push(pythonize(py, rule)?.unbind());
         }
-        Ok(owned_results)
+        Ok(py_results)
     }
 
     /// Executes rules against JSON string data.
@@ -218,7 +221,8 @@ impl FastDecision {
     ///
     /// # Returns
     ///
-    /// List of rule IDs (as strings) that matched the data, in priority order.
+    /// List of rule objects (as Python dictionaries) that matched the data, in priority order.
+    /// Each dictionary contains: id, priority, conditions, action.
     ///
     /// # Errors
     ///
@@ -228,14 +232,17 @@ impl FastDecision {
     ///
     /// Faster than `execute()` if data is already in JSON format
     /// (avoids Python→Rust conversion overhead).
+    /// Uses pythonize for efficient Rust → Python conversion.
     ///
     /// # Example
     ///
     /// ```python
     /// data_json = '{"user": {"tier": "Gold"}}'
     /// results = engine.execute_json(data_json, categories=["Pricing"])
+    /// for rule in results:
+    ///     print(f"Rule {rule['id']}: {rule['action']}")
     /// ```
-    fn execute_json(&self, data_json: &str, categories: Vec<String>) -> PyResult<Vec<String>> {
+    fn execute_json(&self, py: Python<'_>, data_json: &str, categories: Vec<String>) -> PyResult<Vec<PyObject>> {
         let value: Value = serde_json::from_str(data_json).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid JSON: {}", e))
         })?;
@@ -243,12 +250,12 @@ impl FastDecision {
         let categories_refs: Vec<&str> = categories.iter().map(String::as_str).collect();
         let results = self.engine.execute(&value, &categories_refs);
 
-        // Pre-allocate with exact capacity to minimize allocations
-        let mut owned_results = Vec::with_capacity(results.len());
-        for &rule_id in &results {
-            owned_results.push(rule_id.to_owned());
+        // Direct Rust → Python conversion with pythonize (no intermediate JSON)
+        let mut py_results = Vec::with_capacity(results.len());
+        for rule in results {
+            py_results.push(pythonize(py, rule)?.unbind());
         }
-        Ok(owned_results)
+        Ok(py_results)
     }
 }
 

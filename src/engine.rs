@@ -162,13 +162,13 @@ impl RuleEngine {
 
     /// Checks if a single rule matches the given data.
     ///
-    /// Returns `Some(&rule.id)` if the rule matches, `None` otherwise.
+    /// Returns `Some(&rule)` if the rule matches, `None` otherwise.
     /// Logs trace and debug messages via the `log` crate.
-    fn check_rule<'a>(data: &Value, rule: &'a Rule) -> Option<&'a str> {
+    fn check_rule<'a>(data: &Value, rule: &'a Rule) -> Option<&'a Rule> {
         trace!("Checking rule: {}", rule.id);
         if check_predicate(data, &rule.predicate) {
             debug!("Rule {} triggered", rule.id);
-            Some(&rule.id)
+            Some(rule)
         } else {
             trace!("Rule {} not triggered", rule.id);
             None
@@ -184,7 +184,7 @@ impl RuleEngine {
     ///
     /// # Returns
     ///
-    /// A vector of rule IDs (as string slices) that matched the data, in priority order.
+    /// A vector of references to Rule objects that matched the data, in priority order.
     ///
     /// # Behavior
     ///
@@ -208,11 +208,11 @@ impl RuleEngine {
     /// # let engine = RuleEngine::new(ruleset);
     /// let data = json!({"user": {"tier": "Gold"}});
     /// let results = engine.execute(&data, &["Pricing", "Fraud"]);
-    /// for rule_id in results {
-    ///     println!("Matched rule: {}", rule_id);
+    /// for rule in results {
+    ///     println!("Matched rule: {} - {}", rule.id, rule.action);
     /// }
     /// ```
-    pub fn execute<'a>(&'a self, data: &Value, categories_to_run: &[&str]) -> Vec<&'a str> {
+    pub fn execute<'a>(&'a self, data: &Value, categories_to_run: &[&str]) -> Vec<&'a Rule> {
         let categories: Vec<_> = categories_to_run
             .iter()
             .filter_map(|&name| self.ruleset.categories.get(name).map(|cat| (name, cat)))
@@ -229,8 +229,8 @@ impl RuleEngine {
             );
 
             for rule in &category.rules {
-                if let Some(rule_id) = Self::check_rule(data, rule) {
-                    results.push(rule_id);
+                if let Some(matched_rule) = Self::check_rule(data, rule) {
+                    results.push(matched_rule);
 
                     if category.stop_on_first {
                         debug!("stop_on_first enabled, stopping after first match");

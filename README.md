@@ -11,7 +11,7 @@ A high-performance rule engine written in Rust with Python bindings, designed fo
 - **High Performance**: Rust-powered engine with zero-cost abstractions
 - **Priority-based Execution**: Rules sorted by priority (lower number = higher priority)
 - **Stop-on-First**: Per-category flag to stop after first match
-- **MongoDB-style Operators**: Familiar syntax with `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+- **Condition Operators**: Familiar syntax with `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
 - **Complex Logic**: Support for nested AND/OR predicates
 - **Python Bindings**: Native performance with idiomatic Python API via PyO3
 - **Memory Efficient**: Minimal allocations in hot path, optimized data structures
@@ -121,7 +121,7 @@ print(f"Triggered rules: {results}")
 
 ## Rule Format
 
-Rules are defined in JSON with MongoDB-style syntax:
+Rules are defined in JSON:
 
 ```json
 {

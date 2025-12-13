@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of fast-decision rule engine
-- MongoDB-style query operators: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+- Conditon operators: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
 - Priority-based rule execution (lower priority = higher precedence)
 - Stop-on-first matching per category
 - Python bindings via PyO3 for native performance

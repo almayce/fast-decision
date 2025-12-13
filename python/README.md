@@ -82,7 +82,7 @@ for rule_id in results:
 
 - **Priority-based execution**: Lower priority numbers execute first
 - **Stop-on-first**: Stop after first matching rule (per category)
-- **MongoDB-style operators**: $eq, $ne, $gt, $lt, $gte, $lte
+- **Condition operators**: $eq, $ne, $gt, $lt, $gte, $lte
 - **Zero-copy performance**: Direct dict to Rust conversion
 - **Type safety**: Full type checking in both Rust and Python
 
