@@ -29,3 +29,4 @@ Homepage = "https://github.com/almayce/fast-decision"
 
 [tool.maturin]
 module-name = "fast_decision"
+include = ["python/fast_decision.pyi"]
