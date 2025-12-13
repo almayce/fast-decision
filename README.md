@@ -4,9 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/fast-decision.svg)](https://pypi.org/project/fast-decision/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/almayce/fast-decision#license)
 
-A high-performance rule engine with MongoDB-style query syntax, written in Rust with Python bindings.
-
-Designed for applications that need to evaluate complex business rules with minimal latency and maximum throughput.
+A high-performance rule engine written in Rust with Python bindings, designed for applications that need to evaluate complex business rules with minimal latency and maximum throughput.
 
 ## Features
 
