@@ -26,7 +26,7 @@ pyo3 = { version = "0.22", features = ["extension-module"] }
 pyo3-build-config = "0.22"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "engine_benchmark"
