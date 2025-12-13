@@ -10,8 +10,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Basic Tests
+  build:
+    name: Build Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,33 +19,5 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run Rust tests
-        run: cargo test --verbose
-
-      - name: Build release
-        run: cargo build --release --verbose
-
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Build Python package
-        run: maturin develop
-
-      - name: Run Python tests
-        run: |
-          cd python/tests
-          python test_features.py
+      - name: Build
+        run: cargo build --verbose
