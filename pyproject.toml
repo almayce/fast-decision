@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fast-decision"
-version = "0.1.1"
+version = "0.1.2"
 description = "High-performance rule engine with MongoDB-style query syntax"
 authors = [{name = "AK", email = "kolchta@gmail.com"}]
 license = {text = "MIT OR Apache-2.0"}
@@ -29,4 +29,4 @@ Homepage = "https://github.com/almayce/fast-decision"
 
 [tool.maturin]
 module-name = "fast_decision"
-include = ["python/fast_decision.pyi"]
+include = ["fast_decision.pyi"]
