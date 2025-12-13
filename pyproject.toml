@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fast-decision"
-version = "0.1.0"
+version = "0.1.1"
 description = "High-performance rule engine with MongoDB-style query syntax"
 authors = [{name = "AK", email = "kolchta@gmail.com"}]
 license = {text = "MIT OR Apache-2.0"}

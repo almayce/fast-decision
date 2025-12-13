@@ -1,6 +1,6 @@
 [package]
 name = "fast-decision"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["AK <kolchta@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -10,6 +10,7 @@ homepage = "https://github.com/almayce/fast-decision"
 readme = "README.md"
 keywords = ["rules", "engine", "decision", "mongodb", "performance"]
 categories = ["algorithms", "data-structures"]
+exclude = ["venv/", ".venv/"]
 
 [lib]
 name = "fast_decision"
