@@ -89,9 +89,9 @@ python test_features.py
 # Rust example
 cargo run --example demo
 
-# Python example
-cd python/examples
-python example.py
+# Python tests
+cd python/tests
+python test_features.py
 ```
 
 ## Running Benchmarks
@@ -103,7 +103,7 @@ Benchmarks use [Criterion.rs](https://github.com/bheisler/criterion.rs):
 cargo bench
 
 # Run specific benchmark
-cargo bench simple_rule_execution
+cargo bench simple_rule_evaluation
 
 # Generate HTML report (in target/criterion)
 cargo bench --bench engine_benchmark
@@ -192,7 +192,7 @@ fast-decision is performance-critical. Please follow these guidelines:
 
 ### Hot Path Optimization
 
-Functions in the execution hot path should:
+Functions in the evaluation hot path should:
 - Minimize allocations (use `Vec::with_capacity`, `Box<[T]>`, etc.)
 - Use `#[inline]` or `#[inline(always)]` for small functions
 - Avoid unnecessary clones (prefer borrowing)

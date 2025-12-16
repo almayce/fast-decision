@@ -9,8 +9,8 @@ This directory contains Rust examples demonstrating the fast-decision rule engin
 Comprehensive demo showing:
 - Complex rule conditions with nested fields
 - `$or` logical operators
-- Multiple comparison operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`)
-- Priority-based rule execution
+- Multiple comparison operators (`$equals`, `$not-equals`, `$greater-than`, `$greater-than-or-equals`, `$less-than`, `$less-than-or-equals`)
+- Priority-based rule evaluation
 - Logging and debugging
 
 **Run:**
@@ -56,12 +56,12 @@ Rules are defined in JSON format:
 
 | Operator | Description | Example |
 |----------|-------------|---------|
-| `$eq` | Equal | `{"amount": {"$eq": 100}}` |
-| `$ne` | Not equal | `{"tier": {"$ne": "Bronze"}}` |
-| `$gt` | Greater than | `{"amount": {"$gt": 50}}` |
-| `$lt` | Less than | `{"amount": {"$lt": 1000}}` |
-| `$gte` | Greater than or equal | `{"amount": {"$gte": 100}}` |
-| `$lte` | Less than or equal | `{"amount": {"$lte": 500}}` |
+| `$equals` | Equal | `{"amount": {"$eq": 100}}` |
+| `$not-equals` | Not equal | `{"tier": {"$ne": "Bronze"}}` |
+| `$greater-than` | Greater than | `{"amount": {"$gt": 50}}` |
+| `$less-than` | Less than | `{"amount": {"$lt": 1000}}` |
+| `$greater-than-or-equals` | Greater than or equal | `{"amount": {"$gte": 100}}` |
+| `$less-than-or-equals` | Less than or equal | `{"amount": {"$lte": 500}}` |
 
 ## Logical Operators
 
@@ -139,10 +139,10 @@ Access nested fields with dot notation:
 - `"user.details.tier"` → matches `{"user": {"details": {"tier": "..."}}}`
 - `"transaction.amount"` → matches `{"transaction": {"amount": 100}}`
 
-## Priority and Execution
+## Priority and Evaluation
 
 - **Lower priority value = Higher precedence**
-- Priority 1 executes before priority 10
+- Priority 1 evaluates before priority 10
 - Rules within a category are sorted by priority
 - `stop_on_first: true` stops after first match in category
 - `stop_on_first: false` evaluates all rules in category
@@ -165,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let engine = RuleEngine::new(ruleset);
 
     let data = json!({ /* your data */ });
-    let results = engine.execute(&data, &["YourCategory"]);
+    let results = engine.evaluate_rules(&data, &["YourCategory"]);
 
     println!("Results: {:?}", results);
     Ok(())
@@ -190,5 +190,5 @@ cargo run --example my_example
 ## See Also
 
 - [Main README](../README.md)
-- [Python Examples](../python/examples/)
+- [Python Tests](../python/tests/)
 - [CONTRIBUTING](../CONTRIBUTING.md)

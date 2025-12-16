@@ -7,12 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-01-XX
+
+### BREAKING CHANGES
+
+This release includes breaking changes to operator naming. All operators have been renamed to use kebab-case full names for improved clarity and consistency.
+
+#### Operator Renames (BREAKING)
+
+| Old Name | New Name |
+|----------|----------|
+| `$eq` | `$equals` |
+| `$ne` | `$not-equals` |
+| `$gt` | `$greater-than` |
+| `$lt` | `$less-than` |
+| `$gte` | `$greater-than-or-equals` |
+| `$lte` | `$less-than-or-equals` |
+
+### Migration Guide
+
+To migrate from v0.1.x to v0.2.0, update all rule JSON files:
+
+**Before (v0.1.x):**
+```json
+{
+  "conditions": {
+    "age": {"$gte": 18, "$lt": 65},
+    "status": {"$eq": "active", "$ne": "banned"}
+  }
+}
+```
+
+**After (v0.2.0):**
+```json
+{
+  "conditions": {
+    "age": {"$greater-than-or-equals": 18, "$less-than": 65},
+    "status": {"$equals": "active", "$not-equals": "banned"}
+  }
+}
+```
+
+### Added
+
+#### New Operators
+
+- **`$in`**: Check if value is in array
+  - Example: `{"tier": {"$in": ["Gold", "Platinum", "Diamond"]}}`
+  - Use case: Membership checks, allowlists
+
+- **`$not-in`**: Check if value is NOT in array
+  - Example: `{"status": {"$not-in": ["banned", "suspended"]}}`
+  - Use case: Blocklists, exclusion rules
+
+- **`$contains`**: Case-sensitive substring check for strings
+  - Example: `{"description": {"$contains": "premium"}}`
+  - Use case: Text filtering, keyword matching
+
+- **`$starts-with`**: Check if string starts with value
+  - Example: `{"name": {"$starts-with": "Dr."}}`
+  - Use case: Prefix matching, title checks
+
+- **`$ends-with`**: Check if string ends with value
+  - Example: `{"email": {"$ends-with": "@company.com"}}`
+  - Use case: Domain restrictions, suffix validation
+
+- **`$regex`**: Regular expression matching
+  - Example: `{"email": {"$regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"}}`
+  - Use case: Complex pattern matching, validation
+  - Note: Regex patterns are compiled at evaluation time
+
+#### Dependencies
+
+- Added `regex` crate v1.10 for `$regex` operator support
+
+### Performance
+
+- All new operators follow the same performance patterns as existing operators
+- String operators (`$contains`, `$starts-with`, `$ends-with`) use inline optimizations
+- `$in` and `$not-in` leverage iterator short-circuiting
+- `$regex` compiles patterns at evaluation time (may have performance impact for complex patterns)
+
+### Documentation
+
+- Updated all operator documentation with new names
+- Added comprehensive examples for all new operators
+- Updated Python type stubs
+- Added migration guide for v0.1.x users
+
 ## [0.1.0] - 10.12.25
 
 ### Added
 - Initial release of fast-decision rule engine
-- Conditon operators: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
-- Priority-based rule execution (lower priority = higher precedence)
+- Condition operators: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+- Priority-based rule evaluation (lower priority = higher precedence)
 - Stop-on-first matching per category
 - Python bindings via PyO3 for native performance
 - Rust library with zero-cost abstractions
@@ -27,4 +115,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline optimizations for hot path functions
 - Pre-allocated result vectors
 - Optimized data structures (`Box<[String]>`, `#[repr(u8)]`)
-- Minimal allocations during rule execution
+- Minimal allocations during rule evaluation

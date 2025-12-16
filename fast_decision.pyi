@@ -3,7 +3,7 @@
 from typing import Any, TypedDict
 
 class Rule(TypedDict):
-    """Rule object returned by execute methods"""
+    """Rule object returned by evaluate methods"""
     id: str
     priority: int
     conditions: dict[str, Any]
@@ -25,9 +25,9 @@ class FastDecision:
         """
         ...
 
-    def execute(self, data: dict, categories: list[str]) -> list[Rule]:
+    def evaluate_rules(self, data: dict, categories: list[str]) -> list[Rule]:
         """
-        Execute rules and return list of triggered rule objects.
+        Evaluate rules and return list of triggered rule objects.
 
         Args:
             data: Input data as Python dict
@@ -42,9 +42,9 @@ class FastDecision:
         """
         ...
 
-    def execute_json(self, data_json: str, categories: list[str]) -> list[Rule]:
+    def evaluate_rules_from_json(self, data_json: str, categories: list[str]) -> list[Rule]:
         """
-        Execute rules from JSON string.
+        Evaluate rules from JSON string.
 
         Args:
             data_json: Input data as JSON string
