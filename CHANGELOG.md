@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 17.12.25
+
+### Added
+
+- **Optional Metadata Field**: Rules can now include an optional `metadata` field for tracking, auditing, and debugging
+  - Metadata can contain any JSON-compatible data (objects, arrays, strings, numbers, booleans)
+  - Metadata is automatically included in evaluation results when present
+  - Example:
+    ```json
+    {
+      "id": "Premium_Discount",
+      "priority": 1,
+      "conditions": {"user.tier": {"$equals": "Platinum"}},
+      "action": "apply_discount",
+      "metadata": {
+        "source": "Pricing Rules v2.3",
+        "tags": ["premium", "discount"],
+        "created_by": "pricing_team",
+        "last_updated": "2025-01-15"
+      }
+    }
+    ```
+
+### Use Cases for Metadata
+
+- **Audit Logging**: Track which version of rules triggered a decision
+- **Compliance**: Document rule sources, approval dates, and responsible teams
+- **A/B Testing**: Tag rules with experiment IDs for tracking
+- **Debugging**: Add diagnostic information to understand rule behavior
+- **Documentation**: Embed descriptions and examples directly in rules
+
+### Documentation
+
+- Updated main README.md with metadata field documentation
+- Added "Rule Fields" section explaining all rule properties
+- Updated python/README.md with Python-specific metadata examples
+- Added "Using Metadata for Tracing and Compliance" section
+- Updated examples/demo.rs with practical metadata usage
+- Enhanced type hints in fast_decision.pyi for metadata support
+
+### Technical Details
+
+- Metadata field implemented as `Option<serde_json::Map<String, Value>>` in Rust
+- Serialization uses `#[serde(skip_serializing_if = "Option::is_none")]` for efficiency
+- Fully backward compatible - existing rules without metadata continue to work seamlessly
+- No performance impact for rules without metadata
+
 ## [0.2.0] - 16.12.25
 
 ### BREAKING CHANGES
