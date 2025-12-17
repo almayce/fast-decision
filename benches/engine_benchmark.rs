@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fast_decision::{RuleEngine, RuleSet};
 use serde_json::json;
 
@@ -12,19 +12,19 @@ fn create_simple_ruleset() -> RuleSet {
             {
               "id": "R1_Platinum",
               "priority": 1,
-              "conditions": {"user.tier": {"$eq": "Platinum"}},
+              "conditions": {"user.tier": {"$equals": "Platinum"}},
               "action": "Premium_Discount"
             },
             {
               "id": "R2_Gold",
               "priority": 10,
-              "conditions": {"user.tier": {"$eq": "Gold"}},
+              "conditions": {"user.tier": {"$equals": "Gold"}},
               "action": "Standard_Discount"
             },
             {
               "id": "R3_Silver",
               "priority": 20,
-              "conditions": {"user.tier": {"$eq": "Silver"}},
+              "conditions": {"user.tier": {"$equals": "Silver"}},
               "action": "Basic_Discount"
             }
           ]
@@ -47,8 +47,8 @@ fn create_complex_ruleset() -> RuleSet {
               "priority": 1,
               "conditions": {
                 "$or": [
-                  {"user.details.tier": {"$eq": "Platinum"}},
-                  {"transaction.amount": {"$gt": 500}}
+                  {"user.details.tier": {"$equals": "Platinum"}},
+                  {"transaction.amount": {"$greater-than": 500}}
                 ]
               },
               "action": "Premium"
@@ -57,8 +57,8 @@ fn create_complex_ruleset() -> RuleSet {
               "id": "R2_Range",
               "priority": 10,
               "conditions": {
-                "transaction.amount": {"$gte": 100, "$lt": 500},
-                "user.details.tier": {"$ne": "Bronze"}
+                "transaction.amount": {"$greater-than-or-equals": 100, "$less-than": 500},
+                "user.details.tier": {"$not-equals": "Bronze"}
               },
               "action": "Standard"
             },
@@ -66,7 +66,7 @@ fn create_complex_ruleset() -> RuleSet {
               "id": "R3_Nested",
               "priority": 20,
               "conditions": {
-                "user.profile.settings.notifications": {"$eq": true}
+                "user.profile.settings.notifications": {"$equals": true}
               },
               "action": "Notify"
             }
@@ -78,7 +78,7 @@ fn create_complex_ruleset() -> RuleSet {
     serde_json::from_str(rules_json).unwrap()
 }
 
-fn bench_simple_rule_execution(c: &mut Criterion) {
+fn bench_simple_rule_evaluation(c: &mut Criterion) {
     let ruleset = create_simple_ruleset();
     let engine = RuleEngine::new(ruleset);
 
@@ -87,15 +87,15 @@ fn bench_simple_rule_execution(c: &mut Criterion) {
         "transaction": {"amount": 100}
     });
 
-    c.bench_function("simple_rule_execution", |b| {
+    c.bench_function("simple_rule_evaluation", |b| {
         b.iter(|| {
-            let results = engine.execute(black_box(&data), black_box(&["Pricing"]));
+            let results = engine.evaluate_rules(black_box(&data), black_box(&["Pricing"]));
             black_box(results);
         })
     });
 }
 
-fn bench_complex_rule_execution(c: &mut Criterion) {
+fn bench_complex_rule_evaluation(c: &mut Criterion) {
     let ruleset = create_complex_ruleset();
     let engine = RuleEngine::new(ruleset);
 
@@ -109,9 +109,9 @@ fn bench_complex_rule_execution(c: &mut Criterion) {
         "transaction": {"amount": 250}
     });
 
-    c.bench_function("complex_rule_execution", |b| {
+    c.bench_function("complex_rule_evaluation", |b| {
         b.iter(|| {
-            let results = engine.execute(black_box(&data), black_box(&["Complex"]));
+            let results = engine.evaluate_rules(black_box(&data), black_box(&["Complex"]));
             black_box(results);
         })
     });
@@ -132,7 +132,7 @@ fn bench_nested_field_access(c: &mut Criterion) {
         &shallow,
         |b, data| {
             b.iter(|| {
-                let results = engine.execute(black_box(data), black_box(&["Complex"]));
+                let results = engine.evaluate_rules(black_box(data), black_box(&["Complex"]));
                 black_box(results);
             })
         },
@@ -148,7 +148,7 @@ fn bench_nested_field_access(c: &mut Criterion) {
     });
     group.bench_with_input(BenchmarkId::from_parameter("depth_4"), &deep, |b, data| {
         b.iter(|| {
-            let results = engine.execute(black_box(data), black_box(&["Complex"]));
+            let results = engine.evaluate_rules(black_box(data), black_box(&["Complex"]));
             black_box(results);
         })
     });
@@ -177,7 +177,7 @@ fn bench_rule_count_scaling(c: &mut Criterion) {
             {{
               "id": "R{}",
               "priority": {},
-              "conditions": {{"value": {{"$eq": {}}}}},
+              "conditions": {{"value": {{"$equals": {}}}}},
               "action": "Action{}"
             }}
         "#,
@@ -197,7 +197,7 @@ fn bench_rule_count_scaling(c: &mut Criterion) {
             &engine,
             |b, eng| {
                 b.iter(|| {
-                    let results = eng.execute(black_box(&data), black_box(&["Scaling"]));
+                    let results = eng.evaluate_rules(black_box(&data), black_box(&["Scaling"]));
                     black_box(results);
                 })
             },
@@ -211,11 +211,11 @@ fn bench_comparison_operators(c: &mut Criterion) {
     let mut group = c.benchmark_group("comparison_operators");
 
     for (op, value) in [
-        ("$eq", 100),
-        ("$gt", 99),
-        ("$lt", 101),
-        ("$gte", 100),
-        ("$lte", 100),
+        ("$equals", 100),
+        ("$greater-than", 99),
+        ("$less-than", 101),
+        ("$greater-than-or-equals", 100),
+        ("$less-than-or-equals", 100),
     ]
     .iter()
     {
@@ -247,7 +247,7 @@ fn bench_comparison_operators(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(op), &engine, |b, eng| {
             b.iter(|| {
-                let results = eng.execute(black_box(&data), black_box(&["Compare"]));
+                let results = eng.evaluate_rules(black_box(&data), black_box(&["Compare"]));
                 black_box(results);
             })
         });
@@ -258,8 +258,8 @@ fn bench_comparison_operators(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    bench_simple_rule_execution,
-    bench_complex_rule_execution,
+    bench_simple_rule_evaluation,
+    bench_complex_rule_evaluation,
     bench_nested_field_access,
     bench_rule_count_scaling,
     bench_comparison_operators

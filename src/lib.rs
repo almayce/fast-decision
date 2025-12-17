@@ -1,22 +1,21 @@
 //! # fast-decision
 //!
-//! A high-performance rule engine with MongoDB-style query syntax.
+//! A high-performance rule engine.
 //!
-//! This crate provides a rule execution engine optimized for speed with zero-cost abstractions.
-//! Rules are defined using a MongoDB-style syntax and can be executed against JSON data.
+//! This crate provides a rule evaluation engine optimized for speed with zero-cost abstractions.
 //!
 //! ## Features
 //!
-//! - **Priority-based execution**: Rules are sorted by priority (lower values = higher priority)
-//! - **Stop-on-first**: Per-category flag to stop execution after the first matching rule
-//! - **MongoDB-style operators**: `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`, `$and`, `$or`
+//! - **Priority-based evaluation**: Rules are sorted by priority (lower values = higher priority)
+//! - **Stop-on-first**: Per-category flag to stop evaluation after the first matching rule
+//! - **Condition operators**: `$equals`, `$not-equals`, `$greater-than`, `$less-than`, `$greater-than-or-equals`, `$less-than-or-equals`, `$in`, `$not-in`, `$contains`, `$starts-with`, `$ends-with`, `$regex`, `$and`, `$or`
 //! - **Zero-cost abstractions**: Optimized Rust core with minimal allocations in hot paths
 //! - **Python bindings**: Native performance accessible from Python via PyO3
 //!
 //! ## Architecture
 //!
 //! The engine consists of three main components:
-//! - Rule execution engine ([`RuleEngine`])
+//! - Rule evaluation engine ([`RuleEngine`])
 //! - Type definitions and data structures ([`RuleSet`], [`Category`], [`Rule`], [`Predicate`])
 //! - Python bindings via PyO3 (`FastDecision` class)
 //!
@@ -24,7 +23,7 @@
 //!
 //! - O(n) rule evaluation where n is the number of rules in requested categories
 //! - O(d) nested field access where d is the depth of field path
-//! - Minimal allocations during execution (results only)
+//! - Minimal allocations during evaluation (results only)
 //! - Optimized comparison operations with inline hints
 //!
 //! ## Example (Rust)
@@ -41,7 +40,7 @@
 //!       "rules": [{
 //!         "id": "Premium",
 //!         "priority": 1,
-//!         "conditions": {"user.tier": {"$eq": "Gold"}},
+//!         "conditions": {"user.tier": {"$equals": "Gold"}},
 //!         "action": "apply_discount"
 //!       }]
 //!     }
@@ -53,12 +52,13 @@
 //! let engine = RuleEngine::new(ruleset);
 //!
 //! let data = json!({"user": {"tier": "Gold"}});
-//! let results = engine.execute(&data, &["Pricing"]);
+//! let results = engine.evaluate_rules(&data, &["Pricing"]);
 //! println!("Triggered rules: {:?}", results);
 //! ```
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use pythonize::pythonize;
 use serde_json::Value;
 
 mod engine;
@@ -118,7 +118,7 @@ fn pyany_to_value(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
 /// Python interface to the rule engine.
 ///
 /// This class provides Python bindings via PyO3, allowing native-performance
-/// rule execution from Python code.
+/// rule evaluation from Python code.
 ///
 /// # Example (Python)
 ///
@@ -127,7 +127,7 @@ fn pyany_to_value(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
 ///
 /// engine = FastDecision("rules.json")
 /// data = {"user": {"tier": "Gold"}, "amount": 100}
-/// results = engine.execute(data, categories=["Pricing"])
+/// results = engine.evaluate_rules(data, categories=["Pricing"])
 /// print(f"Triggered rules: {results}")
 /// ```
 #[pyclass]
@@ -174,51 +174,60 @@ impl FastDecision {
         })
     }
 
-    /// Executes rules against Python dictionary data.
+    /// Evaluates rules against Python dictionary data.
     ///
     /// # Arguments
     ///
     /// * `data` - Python dictionary containing the data to evaluate
-    /// * `categories` - List of category names to execute
+    /// * `categories` - List of category names to evaluate
     ///
     /// # Returns
     ///
-    /// List of rule IDs (as strings) that matched the data, in priority order.
+    /// List of rule objects (as Python dictionaries) that matched the data, in priority order.
+    /// Each dictionary contains: id, priority, conditions, action.
     ///
     /// # Performance
     ///
-    /// Converts Python dict to Rust `Value` once, then executes rules natively.
-    /// Recommended for in-memory data that's already in Python.
+    /// Converts Python dict to Rust `Value` once, then evaluates rules natively.
+    /// Uses pythonize for efficient Rust → Python conversion without intermediate JSON.
     ///
     /// # Example
     ///
     /// ```python
     /// data = {"user": {"tier": "Gold"}}
-    /// results = engine.execute(data, categories=["Pricing"])
+    /// results = engine.evaluate_rules(data, categories=["Pricing"])
+    /// for rule in results:
+    ///     print(f"Rule {rule['id']}: {rule['action']}")
     /// ```
-    fn execute(&self, data: &Bound<'_, PyDict>, categories: Vec<String>) -> PyResult<Vec<String>> {
+    fn evaluate_rules(
+        &self,
+        py: Python<'_>,
+        data: &Bound<'_, PyDict>,
+        categories: Vec<String>,
+    ) -> PyResult<Vec<PyObject>> {
         let value = pyany_to_value(data.as_any())?;
         let categories_refs: Vec<&str> = categories.iter().map(String::as_str).collect();
-        let results = self.engine.execute(&value, &categories_refs);
+        let results = self.engine.evaluate_rules(&value, &categories_refs);
 
-        // Pre-allocate with exact capacity to minimize allocations
-        let mut owned_results = Vec::with_capacity(results.len());
-        for &rule_id in &results {
-            owned_results.push(rule_id.to_owned());
+        // Direct Rust → Python conversion with pythonize (no intermediate JSON)
+        let mut py_results = Vec::with_capacity(results.len());
+        for rule in results {
+            py_results.push(pythonize(py, rule)?.unbind());
         }
-        Ok(owned_results)
+        Ok(py_results)
     }
 
-    /// Executes rules against JSON string data.
+    /// Evaluates rules against JSON string data.
     ///
     /// # Arguments
     ///
     /// * `data_json` - JSON string containing the data to evaluate
-    /// * `categories` - List of category names to execute
+    /// * `categories` - List of category names to evaluate
     ///
     /// # Returns
     ///
-    /// List of rule IDs (as strings) that matched the data, in priority order.
+    /// List of rule objects (as Python dictionaries) that matched the data, in priority order.
+    /// Each dictionary contains: id, priority, conditions, action.
     ///
     /// # Errors
     ///
@@ -226,29 +235,37 @@ impl FastDecision {
     ///
     /// # Performance
     ///
-    /// Faster than `execute()` if data is already in JSON format
+    /// Faster than `evaluate()` if data is already in JSON format
     /// (avoids Python→Rust conversion overhead).
+    /// Uses pythonize for efficient Rust → Python conversion.
     ///
     /// # Example
     ///
     /// ```python
     /// data_json = '{"user": {"tier": "Gold"}}'
-    /// results = engine.execute_json(data_json, categories=["Pricing"])
+    /// results = engine.evaluate_rules_from_json(data_json, categories=["Pricing"])
+    /// for rule in results:
+    ///     print(f"Rule {rule['id']}: {rule['action']}")
     /// ```
-    fn execute_json(&self, data_json: &str, categories: Vec<String>) -> PyResult<Vec<String>> {
+    fn evaluate_rules_rules_from_json(
+        &self,
+        py: Python<'_>,
+        data_json: &str,
+        categories: Vec<String>,
+    ) -> PyResult<Vec<PyObject>> {
         let value: Value = serde_json::from_str(data_json).map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Invalid JSON: {}", e))
         })?;
 
         let categories_refs: Vec<&str> = categories.iter().map(String::as_str).collect();
-        let results = self.engine.execute(&value, &categories_refs);
+        let results = self.engine.evaluate_rules(&value, &categories_refs);
 
-        // Pre-allocate with exact capacity to minimize allocations
-        let mut owned_results = Vec::with_capacity(results.len());
-        for &rule_id in &results {
-            owned_results.push(rule_id.to_owned());
+        // Direct Rust → Python conversion with pythonize (no intermediate JSON)
+        let mut py_results = Vec::with_capacity(results.len());
+        for rule in results {
+            py_results.push(pythonize(py, rule)?.unbind());
         }
-        Ok(owned_results)
+        Ok(py_results)
     }
 }
 

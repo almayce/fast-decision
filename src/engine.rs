@@ -1,15 +1,18 @@
-//! Rule execution engine.
+//! Rule evaluation engine.
 //!
-//! This module contains the core rule execution logic, including:
+//! This module contains the core rule evaluation logic, including:
 //! - Nested field value extraction
-//! - Comparison operations (eq, ne, gt, lt, gte, lte)
+//! - Comparison operations (equals, not-equals, greater-than, less-than, greater-than-or-equals, less-than-or-equals)
+//! - Membership operations (in, not-in)
+//! - String operations (contains, starts-with, ends-with, regex)
 //! - Predicate evaluation (AND/OR logic)
-//! - Rule matching and execution
+//! - Rule matching and evaluation
 //!
 //! All comparison and lookup functions are marked `#[inline]` for optimal performance.
 
 use crate::types::{Comparison, Operator, Predicate, Rule, RuleSet};
 use log::{debug, trace};
+use regex::Regex;
 use serde_json::Value;
 
 /// Retrieves a nested value from JSON data using dot-separated path tokens.
@@ -88,6 +91,87 @@ fn compare_lte(v1: &Value, v2: &Value) -> bool {
     matches!((v1.as_f64(), v2.as_f64()), (Some(n1), Some(n2)) if n1 <= n2)
 }
 
+/// Checks if a value is in an array.
+///
+/// Returns `true` if the data value equals any element in the array.
+/// Returns `false` if the comparison value is not an array.
+/// Marked `#[inline(always)]` for hot path optimization.
+#[inline(always)]
+fn compare_in(v1: &Value, v2: &Value) -> bool {
+    if let Some(arr) = v2.as_array() {
+        return arr.iter().any(|elem| compare_eq(v1, elem));
+    }
+    false
+}
+
+/// Checks if a value is not in an array.
+///
+/// Returns `true` if the data value does not equal any element in the array.
+/// Returns `false` if the comparison value is not an array.
+/// Marked `#[inline(always)]` for hot path optimization.
+#[inline(always)]
+fn compare_not_in(v1: &Value, v2: &Value) -> bool {
+    !compare_in(v1, v2)
+}
+
+/// Case-sensitive substring check for strings.
+///
+/// Returns `true` if v1 contains v2 as a substring.
+/// Returns `false` if either value is not a string.
+/// Marked `#[inline(always)]` for hot path optimization.
+#[inline(always)]
+fn compare_contains(v1: &Value, v2: &Value) -> bool {
+    matches!(
+        (v1.as_str(), v2.as_str()),
+        (Some(s1), Some(s2)) if s1.contains(s2)
+    )
+}
+
+/// Checks if a string starts with a value.
+///
+/// Returns `true` if v1 starts with v2.
+/// Returns `false` if either value is not a string.
+/// Marked `#[inline(always)]` for hot path optimization.
+#[inline(always)]
+fn compare_starts_with(v1: &Value, v2: &Value) -> bool {
+    matches!(
+        (v1.as_str(), v2.as_str()),
+        (Some(s1), Some(s2)) if s1.starts_with(s2)
+    )
+}
+
+/// Checks if a string ends with a value.
+///
+/// Returns `true` if v1 ends with v2.
+/// Returns `false` if either value is not a string.
+/// Marked `#[inline(always)]` for hot path optimization.
+#[inline(always)]
+fn compare_ends_with(v1: &Value, v2: &Value) -> bool {
+    matches!(
+        (v1.as_str(), v2.as_str()),
+        (Some(s1), Some(s2)) if s1.ends_with(s2)
+    )
+}
+
+/// Regular expression matching for strings.
+///
+/// Compiles regex pattern and matches against data value.
+/// Returns `false` if either value is not a string or regex is invalid.
+///
+/// # Performance Note
+///
+/// This function compiles the regex on each call. For better performance
+/// in hot paths, consider pre-compiling patterns (future optimization).
+#[inline]
+fn compare_regex(v1: &Value, v2: &Value) -> bool {
+    if let (Some(text), Some(pattern)) = (v1.as_str(), v2.as_str()) {
+        if let Ok(re) = Regex::new(pattern) {
+            return re.is_match(text);
+        }
+    }
+    false
+}
+
 /// Evaluates a single comparison against data.
 ///
 /// Extracts the value at the specified path and applies the comparison operator.
@@ -105,6 +189,12 @@ fn check_comparison(data: &Value, comp: &Comparison) -> bool {
         Operator::LessThan => compare_lt(data_value, &comp.value),
         Operator::GreaterThanOrEqual => compare_gte(data_value, &comp.value),
         Operator::LessThanOrEqual => compare_lte(data_value, &comp.value),
+        Operator::In => compare_in(data_value, &comp.value),
+        Operator::NotIn => compare_not_in(data_value, &comp.value),
+        Operator::Contains => compare_contains(data_value, &comp.value),
+        Operator::StartsWith => compare_starts_with(data_value, &comp.value),
+        Operator::EndsWith => compare_ends_with(data_value, &comp.value),
+        Operator::Regex => compare_regex(data_value, &comp.value),
     }
 }
 
@@ -125,14 +215,14 @@ fn check_predicate(data: &Value, predicate: &Predicate) -> bool {
     }
 }
 
-/// The main rule execution engine.
+/// The main rule evaluation engine.
 ///
-/// Holds a compiled ruleset and provides methods to execute rules against data.
+/// Holds a compiled ruleset and provides methods to evaluate rules against data.
 ///
 /// # Performance
 ///
 /// The engine pre-sorts rules by priority during construction and performs
-/// minimal allocations during execution.
+/// minimal allocations during evaluation.
 pub struct RuleEngine {
     ruleset: RuleSet,
 }
@@ -143,7 +233,7 @@ impl RuleEngine {
     /// # Warning Detection
     ///
     /// This constructor checks for duplicate priorities within categories
-    /// and logs warnings if found (order of execution may be non-deterministic).
+    /// and logs warnings if found (order of evaluation may be non-deterministic).
     ///
     /// # Examples
     ///
@@ -162,34 +252,34 @@ impl RuleEngine {
 
     /// Checks if a single rule matches the given data.
     ///
-    /// Returns `Some(&rule.id)` if the rule matches, `None` otherwise.
+    /// Returns `Some(&rule)` if the rule matches, `None` otherwise.
     /// Logs trace and debug messages via the `log` crate.
-    fn check_rule<'a>(data: &Value, rule: &'a Rule) -> Option<&'a str> {
+    fn check_rule<'a>(data: &Value, rule: &'a Rule) -> Option<&'a Rule> {
         trace!("Checking rule: {}", rule.id);
         if check_predicate(data, &rule.predicate) {
             debug!("Rule {} triggered", rule.id);
-            Some(&rule.id)
+            Some(rule)
         } else {
             trace!("Rule {} not triggered", rule.id);
             None
         }
     }
 
-    /// Executes rules from specified categories against the provided data.
+    /// Evaluates rules from specified categories against the provided data.
     ///
     /// # Arguments
     ///
     /// * `data` - JSON data to evaluate rules against
-    /// * `categories_to_run` - List of category names to execute
+    /// * `categories_to_run` - List of category names to evaluate
     ///
     /// # Returns
     ///
-    /// A vector of rule IDs (as string slices) that matched the data, in priority order.
+    /// A vector of references to Rule objects that matched the data, in priority order.
     ///
     /// # Behavior
     ///
     /// - Rules are evaluated in priority order (lower priority value = higher precedence)
-    /// - If a category has `stop_on_first: true`, execution stops after the first match
+    /// - If a category has `stop_on_first: true`, evaluation stops after the first match
     /// - Non-existent categories are silently skipped
     /// - Results accumulate across all requested categories
     ///
@@ -197,7 +287,7 @@ impl RuleEngine {
     ///
     /// - O(n) where n is total number of rules in requested categories
     /// - Pre-allocates result vector with exact capacity
-    /// - Minimal allocations during execution
+    /// - Minimal allocations during evaluation
     ///
     /// # Examples
     ///
@@ -207,12 +297,12 @@ impl RuleEngine {
     /// # let ruleset: RuleSet = serde_json::from_str("{}").unwrap();
     /// # let engine = RuleEngine::new(ruleset);
     /// let data = json!({"user": {"tier": "Gold"}});
-    /// let results = engine.execute(&data, &["Pricing", "Fraud"]);
-    /// for rule_id in results {
-    ///     println!("Matched rule: {}", rule_id);
+    /// let results = engine.evaluate_rules(&data, &["Pricing", "Fraud"]);
+    /// for rule in results {
+    ///     println!("Matched rule: {} - {}", rule.id, rule.action);
     /// }
     /// ```
-    pub fn execute<'a>(&'a self, data: &Value, categories_to_run: &[&str]) -> Vec<&'a str> {
+    pub fn evaluate_rules<'a>(&'a self, data: &Value, categories_to_run: &[&str]) -> Vec<&'a Rule> {
         let categories: Vec<_> = categories_to_run
             .iter()
             .filter_map(|&name| self.ruleset.categories.get(name).map(|cat| (name, cat)))
@@ -229,8 +319,8 @@ impl RuleEngine {
             );
 
             for rule in &category.rules {
-                if let Some(rule_id) = Self::check_rule(data, rule) {
-                    results.push(rule_id);
+                if let Some(matched_rule) = Self::check_rule(data, rule) {
+                    results.push(matched_rule);
 
                     if category.stop_on_first {
                         debug!("stop_on_first enabled, stopping after first match");

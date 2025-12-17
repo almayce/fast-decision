@@ -2,15 +2,15 @@
 //!
 //! This module contains all data structures used by the rule engine:
 //! - [`RuleSet`]: Top-level container for all categories
-//! - [`Category`]: Collection of rules with execution settings
+//! - [`Category`]: Collection of rules with evaluation settings
 //! - [`Rule`]: Individual rule with conditions and action
 //! - [`Predicate`]: AST for condition evaluation (Comparison, AND, OR)
 //! - [`Comparison`]: Single field comparison operation
-//! - [`Operator`]: MongoDB-style comparison operators
+//! - [`Operator`]: Comparison operators
 //!
 //! All types implement custom deserialization for optimal memory layout.
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -34,7 +34,7 @@ fn tokenize_path(path: &str) -> Box<[String]> {
         .into_boxed_slice()
 }
 
-/// MongoDB-style comparison operators.
+/// Comparison operators.
 ///
 /// # Memory Layout
 ///
@@ -42,27 +42,55 @@ fn tokenize_path(path: &str) -> Box<[String]> {
 ///
 /// # Supported Operators
 ///
-/// - `$eq`: Equal
-/// - `$ne`: Not equal
-/// - `$gt`: Greater than
-/// - `$lt`: Less than
-/// - `$gte`: Greater than or equal
-/// - `$lte`: Less than or equal
-#[derive(Debug, Deserialize, Clone, Copy)]
+/// ## Comparison Operators
+/// - `$equals`: Equal
+/// - `$not-equals`: Not equal
+/// - `$greater-than`: Greater than
+/// - `$less-than`: Less than
+/// - `$greater-than-or-equals`: Greater than or equal
+/// - `$less-than-or-equals`: Less than or equal
+///
+/// ## Membership Operators
+/// - `$in`: Value is in array
+/// - `$not-in`: Value is not in array
+///
+/// ## String Operators
+/// - `$contains`: Case-sensitive substring check
+/// - `$starts-with`: String starts with value
+/// - `$ends-with`: String ends with value
+/// - `$regex`: Regular expression matching
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[repr(u8)]
 pub enum Operator {
-    #[serde(rename = "$eq")]
+    // Comparison operators
+    #[serde(rename = "$equals")]
     Equal,
-    #[serde(rename = "$ne")]
+    #[serde(rename = "$not-equals")]
     NotEqual,
-    #[serde(rename = "$gt")]
+    #[serde(rename = "$greater-than")]
     GreaterThan,
-    #[serde(rename = "$lt")]
+    #[serde(rename = "$less-than")]
     LessThan,
-    #[serde(rename = "$gte")]
+    #[serde(rename = "$greater-than-or-equals")]
     GreaterThanOrEqual,
-    #[serde(rename = "$lte")]
+    #[serde(rename = "$less-than-or-equals")]
     LessThanOrEqual,
+
+    // Membership operators
+    #[serde(rename = "$in")]
+    In,
+    #[serde(rename = "$not-in")]
+    NotIn,
+
+    // String operators
+    #[serde(rename = "$contains")]
+    Contains,
+    #[serde(rename = "$starts-with")]
+    StartsWith,
+    #[serde(rename = "$ends-with")]
+    EndsWith,
+    #[serde(rename = "$regex")]
+    Regex,
 }
 
 /// A single field comparison operation.
@@ -76,8 +104,9 @@ pub enum Operator {
 /// # Memory Optimization
 ///
 /// Uses `Box<[String]>` for path tokens to minimize memory overhead.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Comparison {
+    #[serde(rename = "path")]
     pub path_tokens: Box<[String]>,
     pub op: Operator,
     pub value: Value,
@@ -109,18 +138,21 @@ pub struct Comparison {
 /// ```json
 /// {"$or": [{"tier": {"$eq": "Gold"}}, {"tier": {"$eq": "Platinum"}}]}
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum Predicate {
     Comparison(Comparison),
+    #[serde(rename = "$and")]
     And(Vec<Predicate>),
+    #[serde(rename = "$or")]
     Or(Vec<Predicate>),
 }
 
-/// A category containing multiple rules with execution settings.
+/// A category containing multiple rules with evaluation settings.
 ///
 /// # Fields
 ///
-/// - `stop_on_first`: If `true`, execution stops after the first matching rule
+/// - `stop_on_first`: If `true`, evaluation stops after the first matching rule
 /// - `rules`: List of rules (automatically sorted by priority during deserialization)
 ///
 /// # Priority Sorting
@@ -137,9 +169,10 @@ pub struct Category {
 /// # Fields
 ///
 /// - `id`: Unique identifier for the rule
-/// - `priority`: Execution priority (lower = higher precedence, default: 0)
+/// - `priority`: Evaluation priority (lower = higher precedence, default: 0)
 /// - `predicate`: Condition tree (deserialized from `conditions` field)
-/// - `action`: Action identifier (informational, not executed by engine)
+/// - `action`: Action identifier (informational, not evaluated by engine)
+/// - `metadata`: Optional metadata for tracing, compliance, or custom annotations
 ///
 /// # JSON Format
 ///
@@ -147,16 +180,25 @@ pub struct Category {
 /// {
 ///   "id": "Premium_User",
 ///   "priority": 1,
-///   "conditions": {"user.tier": {"$eq": "Gold"}},
-///   "action": "apply_discount"
+///   "conditions": {"user.tier": {"$equals": "Gold"}},
+///   "action": "apply_discount",
+///   "metadata": {
+///     "source": "Pricing Rules v2.3",
+///     "tags": ["premium", "discount"]
+///   }
 /// }
 /// ```
-#[derive(Debug, Clone)]
+///
+/// The `metadata` field is optional and will be included in evaluation results if present.
+#[derive(Debug, Clone, Serialize)]
 pub struct Rule {
     pub id: String,
     pub priority: i32,
+    #[serde(rename = "conditions")]
     pub predicate: Predicate,
     pub action: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Map<String, Value>>,
 }
 
 impl Predicate {
@@ -210,12 +252,18 @@ impl Predicate {
                     // Flat structure of conditions (implicit AND)
                     for (op_str, comp_value) in operators_map {
                         let op = match op_str.as_str() {
-                            "$eq" => Operator::Equal,
-                            "$ne" => Operator::NotEqual,
-                            "$gt" => Operator::GreaterThan,
-                            "$lt" => Operator::LessThan,
-                            "$gte" => Operator::GreaterThanOrEqual,
-                            "$lte" => Operator::LessThanOrEqual,
+                            "$equals" => Operator::Equal,
+                            "$not-equals" => Operator::NotEqual,
+                            "$greater-than" => Operator::GreaterThan,
+                            "$less-than" => Operator::LessThan,
+                            "$greater-than-or-equals" => Operator::GreaterThanOrEqual,
+                            "$less-than-or-equals" => Operator::LessThanOrEqual,
+                            "$in" => Operator::In,
+                            "$not-in" => Operator::NotIn,
+                            "$contains" => Operator::Contains,
+                            "$starts-with" => Operator::StartsWith,
+                            "$ends-with" => Operator::EndsWith,
+                            "$regex" => Operator::Regex,
                             _ => return Err(format!("Unknown operator: {}", op_str)),
                         };
 
@@ -244,7 +292,7 @@ impl Predicate {
 impl Category {
     /// Checks for rules with duplicate priorities and logs warnings.
     ///
-    /// Duplicate priorities may result in non-deterministic execution order
+    /// Duplicate priorities may result in non-deterministic evaluation order
     /// for rules with the same priority value.
     ///
     /// # Arguments
@@ -323,6 +371,8 @@ impl<'de> Deserialize<'de> for Rule {
             priority: i32,
             conditions: Value,
             action: String,
+            #[serde(default)]
+            metadata: Option<serde_json::Map<String, Value>>,
         }
 
         let helper = RuleHelper::deserialize(deserializer)?;
@@ -335,6 +385,7 @@ impl<'de> Deserialize<'de> for Rule {
             priority: helper.priority,
             predicate,
             action: helper.action,
+            metadata: helper.metadata,
         })
     }
 }
