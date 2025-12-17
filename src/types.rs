@@ -172,6 +172,7 @@ pub struct Category {
 /// - `priority`: Evaluation priority (lower = higher precedence, default: 0)
 /// - `predicate`: Condition tree (deserialized from `conditions` field)
 /// - `action`: Action identifier (informational, not evaluated by engine)
+/// - `metadata`: Optional metadata for tracing, compliance, or custom annotations
 ///
 /// # JSON Format
 ///
@@ -179,10 +180,16 @@ pub struct Category {
 /// {
 ///   "id": "Premium_User",
 ///   "priority": 1,
-///   "conditions": {"user.tier": {"$eq": "Gold"}},
-///   "action": "apply_discount"
+///   "conditions": {"user.tier": {"$equals": "Gold"}},
+///   "action": "apply_discount",
+///   "metadata": {
+///     "source": "Pricing Rules v2.3",
+///     "tags": ["premium", "discount"]
+///   }
 /// }
 /// ```
+///
+/// The `metadata` field is optional and will be included in evaluation results if present.
 #[derive(Debug, Clone, Serialize)]
 pub struct Rule {
     pub id: String,
@@ -190,6 +197,8 @@ pub struct Rule {
     #[serde(rename = "conditions")]
     pub predicate: Predicate,
     pub action: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Map<String, Value>>,
 }
 
 impl Predicate {
@@ -362,6 +371,8 @@ impl<'de> Deserialize<'de> for Rule {
             priority: i32,
             conditions: Value,
             action: String,
+            #[serde(default)]
+            metadata: Option<serde_json::Map<String, Value>>,
         }
 
         let helper = RuleHelper::deserialize(deserializer)?;
@@ -374,6 +385,7 @@ impl<'de> Deserialize<'de> for Rule {
             priority: helper.priority,
             predicate,
             action: helper.action,
+            metadata: helper.metadata,
         })
     }
 }

@@ -20,7 +20,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       {"transaction.amount": {"$greater-than": 500}}
                     ]
                   },
-                  "action": "Flag_for_Premium_Discount"
+                  "action": "Flag_for_Premium_Discount",
+                  "metadata": {
+                    "source": "Pricing Rules v2.3",
+                    "tags": ["premium", "discount"],
+                    "created_by": "pricing_team",
+                    "last_updated": "2025-01-15"
+                  }
                 },
                 {
                   "id": "R2_MediumRange",
@@ -29,7 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "transaction.amount": {"$greater-than-or-equals": 100, "$less-than": 500},
                     "user.details.tier": {"$not-equals": "Bronze"}
                   },
-                  "action": "Standard_Discount"
+                  "action": "Standard_Discount",
+                  "metadata": {
+                    "source": "Pricing Rules v2.3",
+                    "tags": ["standard", "discount"]
+                  }
                 },
                 {
                   "id": "R3_SmallTransaction",

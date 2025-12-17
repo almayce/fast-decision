@@ -52,13 +52,26 @@ python test_features.py
           "conditions": {
             "user.tier": {"$eq": "Premium"}
           },
-          "action": "apply_premium_discount"
+          "action": "apply_premium_discount",
+          "metadata": {
+            "source": "Pricing Rules v2.3",
+            "tags": ["premium", "discount"],
+            "description": "Optional custom data for tracking and compliance"
+          }
         }
       ]
     }
   }
 }
 ```
+
+#### Rule Fields
+
+- **id** (required): Unique rule identifier
+- **priority** (required): Evaluation priority (lower = higher precedence)
+- **conditions** (required): Condition tree for evaluation
+- **action** (required): Action identifier (informational, not evaluated by engine)
+- **metadata** (optional): Custom metadata dictionary. If present, will be included in evaluation results returned by `evaluate_rules_detailed()`.
 
 ### 2. Python Code
 
@@ -118,12 +131,38 @@ rules = {
                             {"user.spend_total": {"$gt": 10000}}
                         ]
                     },
-                    "action": "grant_vip_access"
+                    "action": "grant_vip_access",
+                    "metadata": {
+                        "source": "Loyalty Program v3.1",
+                        "tags": ["vip", "eligibility"],
+                        "audit_log": True
+                    }
                 }
             ]
         }
     }
 }
+```
+
+### Using Metadata for Tracing and Compliance
+
+```python
+from fast_decision import FastDecision
+
+engine = FastDecision("rules.json")
+
+data = {"user": {"tier": "Platinum"}, "amount": 500}
+
+# Get detailed results including metadata
+results = engine.evaluate_rules_detailed(data, categories=["Pricing"])
+
+for rule in results:
+    print(f"Rule: {rule['id']}")
+    print(f"Action: {rule['action']}")
+    if 'metadata' in rule:
+        # Use metadata for audit logging, tracking, or debugging
+        print(f"Source: {rule['metadata'].get('source')}")
+        print(f"Tags: {rule['metadata'].get('tags')}")
 ```
 
 ### Nested Field Access

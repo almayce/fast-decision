@@ -219,13 +219,26 @@ Rules are defined in JSON:
           "conditions": {
             "field.path": {"$equals": "value"}
           },
-          "action": "action_name"
+          "action": "action_name",
+          "metadata": {
+            "source": "Pricing Rules v2.3",
+            "tags": ["discount", "promotion"],
+            "description": "Optional custom data for tracking"
+          }
         }
       ]
     }
   }
 }
 ```
+
+### Rule Fields
+
+- **id** (required): Unique rule identifier
+- **priority** (required): Evaluation priority (lower = higher precedence)
+- **conditions** (required): Condition tree for evaluation
+- **action** (required): Action identifier (informational, not evaluated by engine)
+- **metadata** (optional): Custom metadata for tracing, compliance, or annotations. Will be included in evaluation results if present.
 
 ### Supported Operators
 

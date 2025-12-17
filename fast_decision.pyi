@@ -2,12 +2,13 @@
 
 from typing import Any, TypedDict
 
-class Rule(TypedDict):
+class Rule(TypedDict, total=False):
     """Rule object returned by evaluate methods"""
-    id: str
-    priority: int
-    conditions: dict[str, Any]
-    action: str
+    id: str  # Required
+    priority: int  # Required
+    conditions: dict[str, Any]  # Required
+    action: str  # Required
+    metadata: dict[str, Any]  # Optional
 
 class FastDecision:
     """High-performance rule engine"""
@@ -39,6 +40,7 @@ class FastDecision:
                 - priority: Rule priority
                 - conditions: Rule conditions
                 - action: Rule action
+                - metadata: Optional metadata (if present in rule)
         """
         ...
 
@@ -56,6 +58,7 @@ class FastDecision:
                 - priority: Rule priority
                 - conditions: Rule conditions
                 - action: Rule action
+                - metadata: Optional metadata (if present in rule)
 
         Raises:
             ValueError: If JSON is invalid

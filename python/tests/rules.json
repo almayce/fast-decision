@@ -9,7 +9,13 @@
           "conditions": {
             "user.tier": {"$equals": "Platinum"}
           },
-          "action": "apply_platinum_discount"
+          "action": "apply_platinum_discount",
+          "metadata": {
+            "source": "Pricing Rules v2.3",
+            "tags": ["platinum", "discount", "premium"],
+            "discount_percent": 20,
+            "created_by": "pricing_team"
+          }
         },
         {
           "id": "R2_Gold",
@@ -17,7 +23,12 @@
           "conditions": {
             "user.tier": {"$equals": "Gold"}
           },
-          "action": "apply_gold_discount"
+          "action": "apply_gold_discount",
+          "metadata": {
+            "source": "Pricing Rules v2.3",
+            "tags": ["gold", "discount"],
+            "discount_percent": 10
+          }
         },
         {
           "id": "R3_Silver",
