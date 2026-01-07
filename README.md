@@ -118,7 +118,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fast-decision = "0.1"
+fast-decision = "0.2.2"
 ```
 
 ### Python
