@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.3] - 07.01.26
+## [0.2.4] - 07.01.26
 
 ### Fixed
 
 - **Boolean Comparison**: Fixed equality comparison for boolean values in `compare_eq` function (src/engine.rs:55-57)
   - Previously, boolean values were not properly compared using their boolean representation
   - Now correctly handles boolean-to-boolean comparisons before falling back to general equality
+
+## [0.2.3] - 07.01.26
+
+### Internal
+
+- Version bump (not published)
 
 ## [0.2.2] - 07.01.26
 
