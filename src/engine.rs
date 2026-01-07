@@ -52,6 +52,10 @@ fn compare_eq(v1: &Value, v2: &Value) -> bool {
     if let (Some(n1), Some(n2)) = (v1.as_f64(), v2.as_f64()) {
         return (n1 - n2).abs() < f64::EPSILON;
     }
+    // 2. ДОБАВЛЯЕМ: Сравнение как булевы значения
+    if let (Some(b1), Some(b2)) = (v1.as_bool(), v2.as_bool()) {
+        return b1 == b2;
+    }
     v1 == v2
 }
 
