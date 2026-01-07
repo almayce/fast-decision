@@ -26,7 +26,7 @@ pythonize = "0.22"
 regex = "1.10"
 
 [build-dependencies]
-pyo3-build-config = "0.22"
+pyo3-build-config = "0.27"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
